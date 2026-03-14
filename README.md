@@ -4,6 +4,8 @@ Universal translation management and QA tool for **Cataclysm: Dark Days Ahead (C
 
 Works with any CDDA-supported language. Integrates with Transifex (the official CDDA translation platform) and validates translation quality against language-agnostic rules.
 
+> **What is a `.po` file?** A `.po` (Portable Object) file is the standard format used by many open-source projects to store translations. It is a plain text file containing pairs of original English strings and their translations. You download it from Transifex, work on your translations locally, then upload it back.
+
 ---
 
 ## Quick Start (no Git experience needed)
@@ -17,11 +19,18 @@ Works with any CDDA-supported language. Integrates with Transifex (the official 
 | [Git](https://git-scm.com/downloads) | Tracks changes and powers the Transifex sync | git-scm.com |
 | [Bun](https://bun.sh) | Runs this tool | bun.sh |
 
-After installing both, open a terminal in the project folder and run:
+After installing both, open a terminal **in the project folder** and run:
+
+> **How to open a terminal in the project folder:**
+> - **Windows:** Hold Shift and right-click the project folder in Explorer → "Open PowerShell window here" (or "Open in Terminal" on Windows 11).
+> - **macOS:** Right-click the project folder in Finder → "New Terminal at Folder". *(If you don't see this option, enable it in System Settings → Keyboard → Keyboard Shortcuts → Services.)*
+> - **Linux:** Right-click the project folder in your file manager → "Open Terminal Here". *(The exact wording depends on your file manager.)*
 
 ```bash
 bun install
 ```
+
+If it worked, you will see a few lines of output ending with something like `N packages installed`. No red "error" messages means everything is ready.
 
 ### 2. Download your translation file
 
@@ -44,6 +53,9 @@ This single command does two things:
 > ```bash
 > bun run src/cli.ts extract ./my-translations.po
 > ```
+> `bun run extract` and `bun run src/cli.ts extract` call the same tool — `bun run extract` is just a shorter alias.
+
+If it worked, you will see a list of created files scroll by with no red errors, and the `./reports/` folder will appear (or be updated) in your project folder.
 
 ### 4. Commit the results
 
@@ -51,8 +63,10 @@ This single command does two things:
 bun run commit-po
 ```
 
-This stages all generated files and creates a git commit with a message that includes the date from the `.po` file header, for example:
+This saves all generated files into Git with a message that includes the date from the `.po` file header, for example:
 `Extracted PO files 2026-03-12 10:00+0000`
+
+If it worked, you will see a line like: `[main abc1234] Extracted PO files 2026-03-12 10:00+0000`
 
 > **First time?** You may see a Git error asking you to set your name and email. Run these two commands once:
 > ```bash
@@ -66,8 +80,8 @@ This stages all generated files and creates a git commit with a message that inc
 Once your translations are committed, you can push the new or updated strings back to Transifex:
 
 ```bash
-bun run sync-transifex --since HEAD~1   # sync changes from the last commit
-bun run sync-transifex --dry-run        # preview what would be sent, without sending
+bun run sync-transifex --since HEAD~1   # sync changes from the last commit ("one commit ago")
+bun run sync-transifex --dry-run        # preview what would be sent, without actually sending anything
 ```
 
 > [!NOTE]
@@ -81,6 +95,8 @@ See [Transifex Sync Setup](#transifex-sync-setup) below for the one-time API tok
 ---
 
 ## Workflow
+
+Repeat this cycle every time you want to work on translations:
 
 ```
 Download .po file from Transifex and copy it to the project folder.
@@ -105,14 +121,8 @@ Download .po file from Transifex and copy it to the project folder.
    Run command: sync-transifex - to push changes back to Transifex.
          │
          ▼
-   Return to step 1 (Download the updated .po file with new translations from Transifex)
+   Repeat from the top
 ```
-
-> [!NOTE]
-> After a successful sync, the tool automatically creates a git commit:
-`Synced N translation(s) to Transifex YYYY-MM-DD HH:MM:SS+0000`
-> This keeps your git history as a complete record of every upload — no manual bookkeeping needed.
-> Add `--no-commit` if you want to skip the automatic commit.
 
 ---
 
@@ -142,21 +152,28 @@ bun run src/cli.ts commit-po ./my-translations.po
 bun run src/cli.ts commit-po ./my-translations.po --dry-run
 ```
 
-Stages the input `.po` file and everything under `./reports/`, then commits with the message:
+Adds the input `.po` file and everything under `./reports/` to Git, then commits with the message:
 `Extracted PO files <POT-Creation-Date>`
+
+> **`commit-po` vs `sync-transifex` — what's the difference?**
+>
+> - **`commit-po`** takes a snapshot of the freshly downloaded `.po` file and saves it into Git. This snapshot represents *what is currently on Transifex* — a baseline. Run it every time you download a new or updated `.po` file.
+> - **`sync-transifex`** compares your current files against that baseline using Git, finds every string you changed since the download, and uploads only those changes to Transifex.
+>
+> In other words: `commit-po` records *where you started*, and `sync-transifex` figures out *what you changed* by looking at the difference between now and that starting point. Without the `commit-po` snapshot, `sync-transifex` has no reference to compare against.
 
 ### `sync-transifex` — Sync changes to Transifex
 
 Uses `git diff` to detect changed translations and pushes them to the Transifex REST API.
 
 ```bash
-bun run sync-transifex                  # detect changes vs last commit
-bun run sync-transifex --since HEAD~1   # sync changes from last commit
-bun run sync-transifex --since main     # sync all changes since main branch
-bun run sync-transifex --dry-run        # preview without making API calls
-bun run sync-transifex --yes            # skip interactive confirmation (CI)
-bun run sync-transifex --force          # bypass regression safety block
-bun run sync-transifex --no-commit      # skip the automatic git commit
+bun run sync-transifex                  # sync translations changed since your last save (commit)
+bun run sync-transifex --since HEAD~1   # sync only translations changed in the previous save
+bun run sync-transifex --since main     # sync all translations changed since the main branch
+bun run sync-transifex --dry-run        # preview what would be uploaded — nothing is actually sent
+bun run sync-transifex --yes            # skip the "are you sure?" prompt (useful for automation)
+bun run sync-transifex --force          # upload even if a large number of changes is detected (see FAQ)
+bun run sync-transifex --no-commit      # do not create a git save-point after uploading
 ```
 
 After successfully pushing strings, a git commit is created automatically:
@@ -173,6 +190,8 @@ bun run generate:report
 ```
 
 ### Advanced commands
+
+> **`bun run` vs `bun run src/cli.ts`:** `bun run <name>` is a shortcut for the most common commands (defined in `package.json`). `bun run src/cli.ts` runs the tool directly and supports every command and option. Both call the same tool — when a shortcut doesn't exist for what you need, use `bun run src/cli.ts`.
 
 ```bash
 bun run src/cli.ts report:untranslated translations.po --format console
@@ -224,15 +243,23 @@ For `sync-transifex`, set `TRANSIFEX_LANGUAGE` in your `.env` file.
    ```bash
    cp .env.example .env
    ```
+   *(On Windows without Git Bash, use: `copy .env.example .env`)*
 
-2. Fill in your credentials:
+2. Get your Transifex API token:
+   - Log in to [Transifex](https://www.transifex.com).
+   - Click your **avatar** (top-right corner) → **Settings**.
+   - Go to the **API token** tab → click **Generate a token**.
+   - Copy the token — you will only see it once.
+
+3. Open the `.env` file in a text editor and fill in your details:
    ```env
-   TRANSIFEX_API_TOKEN=<your token from https://www.transifex.com/user/settings/api/>
+   TRANSIFEX_API_TOKEN=paste-your-token-here
    TRANSIFEX_LANGUAGE=ru
    # TRANSIFEX_ORG=cataclysm-dda-translators
    # TRANSIFEX_PROJECT=cataclysm-dda
    # TRANSIFEX_RESOURCE=master-cataclysm-dda
    ```
+   Replace `ru` with your own language code if you are not translating Russian. Lines starting with `#` are comments — leave them as-is unless you are working on a fork of CDDA.
 
 The sync command:
 - Finds changed `.po` files using `git diff`
@@ -240,3 +267,56 @@ The sync command:
 - PATCHes only entries whose `msgstr` changed
 - Rate-limits to 500 requests/minute (120ms between requests)
 - Maps plural form indices to CLDR names (`one`/`few`/`many`/`other` etc.) for the target language
+
+---
+
+## Troubleshooting / FAQ
+
+### "command not found: bun"
+
+Bun was not installed correctly, or the terminal was opened before installation finished. Close and reopen your terminal, then try `bun --version`. If that still fails, revisit [bun.sh](https://bun.sh) and follow the installation instructions for your operating system.
+
+### "command not found: git"
+
+Git is not installed. Download it from [git-scm.com](https://git-scm.com/downloads), install it, then restart your terminal.
+
+### Git asks you to set your name and email
+
+You need to identify yourself to Git once. Run these two commands (replace with your own details) in terminal at the project folder:
+```bash
+git config user.name "Your Name"
+git config user.email "you@example.com"
+```
+Then re-run the command that failed. Your credentials aren't shared with anyone — they are only stored locally on your computer to keep track of who made which changes.
+
+### The `.po` file is not found
+
+Make sure you placed the file directly inside the project folder (not in a sub-folder) and that the file name matches exactly what you typed. File names are case-sensitive on Linux and macOS.
+
+### `sync-transifex` prints "401 Unauthorized"
+
+Your API token in the `.env` file is wrong, incomplete, or expired. Generate a new one on Transifex (see [Transifex Sync Setup](#transifex-sync-setup)) and update the `.env` file.
+
+### The tool warns about a large number of changes
+
+This is a safety feature to prevent accidentally overwriting many strings at once. Double-check that your changes are correct, then re-run with `--force` to proceed anyway.
+
+### On Windows, `cp .env.example .env` says "not recognised"
+
+Use the Windows equivalent: `copy .env.example .env`. This works in both Command Prompt and PowerShell. If you are using Git Bash, `cp` should work fine.
+
+---
+
+## Glossary
+
+| Term | Meaning |
+|------|---------|
+| `.po` file | A plain text file containing translation pairs (original English + translation). The standard format for open-source translations. |
+| `.env` file | A local configuration file where you store private settings such as API tokens. It is never shared or committed to Git. |
+| Commit | A saved snapshot of your files in Git — like a named save point. The tool creates commits automatically so you always have a history of your work. |
+| Dry run (`--dry-run`) | A mode that shows what a command *would* do without actually doing it. Safe to run at any time. |
+| API token | A secret key that proves your identity to a web service like Transifex. Treat it like a password — never share it. |
+| `HEAD~1` | Git shorthand for "the previous save point". `HEAD` refers to the latest commit; `~1` means "one step back". |
+| CLDR | Common Locale Data Repository — an international standard that defines how plural forms are named (e.g. "one", "few", "many", "other"). |
+| Glob pattern | A wildcard file path — for example, `*.po` means "every file whose name ends in `.po`". |
+| `msgstr` | The field inside a `.po` file that holds the translated text (as opposed to `msgid`, which holds the original English). |
