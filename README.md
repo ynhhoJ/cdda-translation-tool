@@ -99,6 +99,9 @@ Download .po file from Transifex and copy it to the project folder.
    Run command: commit-po - to commit the changes to Git
          │
          ▼
+   Translate/Review strings in the splited PO files under ./reports/c-dda/ or ./reports/untranslated/
+         │
+         ▼
    Run command: sync-transifex - to push changes back to Transifex.
          │
          ▼
